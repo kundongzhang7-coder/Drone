@@ -59,7 +59,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 t1=time.perf_counter()
                 elapsed_ms=(t1-t0)*1000
                 print(f"推理耗时: {elapsed_ms:.1f} ms -> 实际FPS: {1000/elapsed_ms:.1f}")
-                annotated_fr ame = results[0].plot()
+                annotated_frame = results[0].plot()
 
                 # 编码
                 _, buffer = cv2.imencode('.jpg', annotated_frame)

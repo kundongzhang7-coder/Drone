@@ -1,9 +1,10 @@
-package com.example.backend.controller; // 替换成你自己的包名
+﻿package com.example.backend.controller; // 替换成你自己的包名
 
 import com.example.backend.entity.DetectionTask;
 import com.example.backend.repository.DetectionTaskRepository;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.MediaType;
@@ -28,11 +29,12 @@ public class VideoProcessController {
     @Autowired
     private DetectionTaskRepository repo;
 
-    // Python 解释器命令
-    private static final String PYTHON_COMMAND = "python";
-    // Python 脚本的绝对路径
-    private static final String SCRIPT_PATH = "D:/JavaKnowledge/JAVA项目/Drone1/yolo_process.py";
-    // ================================================
+    // Python 解释器命令与脚本路径（在 application.properties 中配置）
+    @Value("${app.python.command:python}")
+    private String pythonCommand;
+
+    @Value("${app.python.script-path:yolo_process.py}")
+    private String scriptPath;
     @Transactional
     @PostMapping("/process-video")
     public ResponseEntity<Resource> processVideo(@RequestParam("video") MultipartFile videoFile) {
@@ -52,8 +54,8 @@ public class VideoProcessController {
             // 2. 构建 ProcessBuilder 执行 Python 脚本
             System.out.println("D: 准备启动 Python");
             ProcessBuilder pb = new ProcessBuilder(
-                    PYTHON_COMMAND,
-                    SCRIPT_PATH,
+                    pythonCommand,
+                    scriptPath,
                     inputPath.toString(),
                     outputPath.toString()
             );
