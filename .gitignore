@@ -1,0 +1,90 @@
+# ===== Python =====
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+drone_env/
+venv/
+.venv/
+env/
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# ===== YOLO 训练输出 =====
+runs/
+**/runs/
+
+# ===== 模型权重 / 数据集 =====
+*.pth
+*.pt
+*.onnx
+*.h5
+*.pb
+*.ckpt
+*.zip
+*.rar
+*.7z
+*.tar.gz
+*.7z
+data/visdrone/
+
+# ===== 视频 / 媒体产物 =====
+*.mp4
+*.avi
+*.mov
+*.webm
+*.mkv
+*.flv
+*.wmv
+backend_py/data/output/
+backend_java/videos/
+drone-detection-ui/public/videos/
+
+# ===== Java / Maven =====
+target/
+*.class
+*.jar
+*.war
+myjre/
+
+# ===== 前端 / Node =====
+node_modules/
+dist-ssr/
+coverage/
+*.local
+test-results/
+playwright-report/
+cypress/videos/
+cypress/screenshots/
+
+# ===== IDE =====
+.idea/
+*.iml
+*.iws
+*.ipr
+.vscode/
+.settings/
+.project
+.classpath
+.factorypath
+.springBeans
+.sts4-cache
+
+# ===== OS =====
+.DS_Store
+Thumbs.db
+
+# ===== 运行时数据库 =====
+*.db
+*.sqlite
+*.sqlite3
+
+# ===== 日志 =====
+*.log
+logs/
+
+# ===== 工具二进制 =====
+cloc-*.exe
