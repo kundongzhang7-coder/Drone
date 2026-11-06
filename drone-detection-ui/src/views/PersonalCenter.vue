@@ -37,41 +37,19 @@
               <el-input v-model="userInfo.username" disabled />
             </el-form-item>
 
+            <!-- 昵称 -->
+            <el-form-item label="昵称">
+              <el-input v-model="userInfo.nickname" :disabled="!editMode" placeholder="请输入昵称" />
+            </el-form-item>
+
             <!-- 邮箱 -->
             <el-form-item label="邮箱">
               <el-input v-model="userInfo.email" :disabled="!editMode" placeholder="请输入邮箱" />
             </el-form-item>
 
-            <!-- 姓氏 -->
-            <el-form-item label="姓氏">
-              <el-input v-model="userInfo.first" :disabled="!editMode" placeholder="请输入姓氏" />
-            </el-form-item>
-
-            <!-- 出生年份 -->
-            <el-form-item label="出生年份">
-              <el-input
-                v-model="userInfo.second"
-                :disabled="!editMode"
-                placeholder="例如：2000"
-              />
-            </el-form-item>
-
-            <!-- 学校（下拉选择） -->
-            <el-form-item label="学校">
-              <el-select
-                v-model="userInfo.third"
-                :disabled="!editMode"
-                placeholder="请选择学校"
-                filterable
-                allow-create
-              >
-                <el-option
-                  v-for="school in university"
-                  :key="school"
-                  :label="school"
-                  :value="school"
-                />
-              </el-select>
+            <!-- 手机号 -->
+            <el-form-item label="手机号">
+              <el-input v-model="userInfo.phone" :disabled="!editMode" placeholder="请输入手机号" />
             </el-form-item>
 
             <!-- 操作按钮 -->
@@ -81,7 +59,6 @@
                 <el-button type="primary" @click="saveProfile">保存</el-button>
                 <el-button @click="cancelEdit">取消</el-button>
               </template>
-              <el-button type="danger" plain @click="changePassword">修改密码</el-button>
             </div>
           </el-form>
         </div>
@@ -92,255 +69,111 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import { userMap, university } from '../mock/userDB'
+import { useRouter } from 'vue-router'
+import { ElMessage } from 'element-plus'
+import { getProfile, updateProfile, uploadAvatar } from '../api/auth'
 
 const router = useRouter()
-const route = useRoute()
 const editMode = ref(false)
-
-// 获取当前登录用户名（从路由 query 获取）
-const currentUsername = route.query.userName as string || ''
 
 // 用户信息（副本，用于编辑）
 const userInfo = reactive({
+  id: null as number | null,
   username: '',
-  password: '',
+  nickname: '',
   email: '',
-  first: '',
-  second: '',
-  third: '',
+  phone: '',
+  avatar: '',
 })
 
-// 原始用户数据（用于取消编辑时恢复）
-let originalUser: any = null
+// 原始数据（用于取消编辑时恢复）
+let original: Record<string, unknown> = { ...userInfo }
 
-// 头像（默认 Base64 图标，后期可替换）
-let userAvatar = ref(
+// 头像（默认 Base64 图标，登录后替换为 COS 地址）
+const userAvatar = ref(
   'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="80" height="80" viewBox="0 0 24 24" fill="%233b82f6"%3E%3Cpath d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/%3E%3C/svg%3E'
 )
 
-// 加载用户数据
-const loadUserData = () => {
-  if (!currentUsername) {
-    ElMessage.error('未登录，请先登录')
-    router.push('/login')
-    return
-  }
-
-  const user = userMap.get(currentUsername)
-  if (!user) {
-    ElMessage.error('用户不存在')
-    router.push('/login')
-    return
-  }
-
-  // 复制数据到响应式对象
-  userInfo.username = user.name
-  userInfo.password = user.password
-  userInfo.email = user.email || ''
-  userInfo.first = user.first || ''
-  userInfo.second = user.second || ''
-  userInfo.third = user.third || ''
-
-  // 保存原始数据副本
-  originalUser = { ...user }
-
-  // 加载已保存的头像
-  const savedAvatar = localStorage.getItem(`user_avatar_${currentUsername}`)
-  if (savedAvatar) {
-    userAvatar.value = savedAvatar
+// 加载当前登录用户资料
+const loadUserData = async () => {
+  try {
+    const res = await getProfile()
+    const u = res.data
+    Object.assign(userInfo, {
+      id: u.id,
+      username: u.username,
+      nickname: u.nickname || '',
+      email: u.email || '',
+      phone: u.phone || '',
+      avatar: u.avatar || '',
+    })
+    original = { ...userInfo }
+    if (u.avatar) userAvatar.value = u.avatar
+  } catch (error) {
+    // 401 已由 request 拦截器统一处理
   }
 }
 
-// 启用编辑模式
 const enableEdit = () => {
   editMode.value = true
 }
 
-// 取消编辑，恢复原始数据
 const cancelEdit = () => {
-  if (originalUser) {
-    userInfo.email = originalUser.email || ''
-    userInfo.first = originalUser.first || ''
-    userInfo.second = originalUser.second || ''
-    userInfo.third = originalUser.third || ''
-  }
+  Object.assign(userInfo, original)
   editMode.value = false
 }
 
-// 校验表单数据
-const validateForm = (): boolean => {
-  const email = userInfo.email.trim()
-  const firstName = userInfo.first.trim()
-  const birthYear = userInfo.second.trim()
-  const school = userInfo.third.trim()
-
-  // 邮箱非空校验
-  if (!email) {
-    ElMessage.error('邮箱不能为空')
-    return false
-  }
-  // 邮箱格式校验
-  const emailRegex = /^[^\s@]+@([^\s@]+\.)+[^\s@]+$/
-  if (!emailRegex.test(email)) {
-    ElMessage.error('请输入正确的邮箱格式')
-    return false
-  }
-
-  // 姓氏非空
-  if (!firstName) {
-    ElMessage.error('姓氏不能为空')
-    return false
-  }
-  // 姓氏只能包含中文
-  if (!/^[\u4e00-\u9fa5]+$/.test(firstName)) {
-    ElMessage.error('姓氏只能包含中文')
-    return false
-  }
-  // 姓氏长度最多4个汉字
-  if (firstName.length > 4) {
-    ElMessage.error('姓氏最多4个汉字')
-    return false
-  }
-
-  // 出生年份非空
-  if (!birthYear) {
-    ElMessage.error('出生年份不能为空')
-    return false
-  }
-  // 出生年份必须是数字
-  const yearNum = Number(birthYear)
-  if (isNaN(yearNum)) {
-    ElMessage.error('出生年份必须是数字')
-    return false
-  }
-  // 年份范围校验（1900-2023，可根据实际调整）
-  if (yearNum < 1900 || yearNum > 2023) {
-    ElMessage.error('出生年份范围应在1900-2023之间')
-    return false
-  }
-
-  // 学校非空
-  if (!school) {
-    ElMessage.error('学校不能为空')
-    return false
-  }
-
-  return true
-}
-
-// 保存修改
 const saveProfile = async () => {
-  // 先校验数据
-  if (!validateForm()) return
-
   try {
-    const user = userMap.get(currentUsername)
-    if (!user) throw new Error('用户不存在')
-
-    // 更新用户信息（Proxy 会自动保存到 localStorage）
-    user.email = userInfo.email
-    user.first = userInfo.first
-    user.second = userInfo.second
-    user.third = userInfo.third
-
-    // 更新原始数据副本
-    originalUser = { ...user }
-
+    await updateProfile({
+      nickname: userInfo.nickname,
+      email: userInfo.email,
+      phone: userInfo.phone,
+    })
     ElMessage.success('保存成功')
+    original = { ...userInfo }
     editMode.value = false
   } catch (error) {
     ElMessage.error('保存失败，请重试')
-    console.error(error)
   }
 }
 
-// 修改密码
-const changePassword = async () => {
-  try {
-    const { value: formValue } = await ElMessageBox.prompt('请输入旧密码', '验证身份', {
-      confirmButtonText: '下一步',
-      cancelButtonText: '取消',
-      inputType: 'password',
-      inputPlaceholder: '旧密码',
-    })
-
-    const user = userMap.get(currentUsername)
-    if (!user) throw new Error('用户不存在')
-
-    if (formValue !== user.password) {
-      ElMessage.error('旧密码错误')
-      return
-    }
-
-    const { value: newPassword } = await ElMessageBox.prompt('请输入新密码', '修改密码', {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      inputType: 'password',
-      inputPlaceholder: '新密码',
-      inputValidator: (val) => {
-        if (!val) return '密码不能为空'
-        if (val.length < 6) return '密码至少6位'
-        return true
-      },
-    })
-
-    user.password = newPassword
-    ElMessage.success('密码修改成功')
-  } catch (error) {
-    if (error !== 'cancel') {
-      console.error(error)
-    }
-  }
-}
-
-// 更换头像
+// 更换头像：上传到腾讯云 COS，返回可访问 URL
 const changeAvatar = () => {
-  // 创建隐藏的 file input
   const input = document.createElement('input')
   input.type = 'file'
   input.accept = 'image/*'
-  input.onchange = (event: Event) => {
+  input.onchange = async (event: Event) => {
     const file = (event.target as HTMLInputElement).files?.[0]
     if (!file) return
-
-    // 限制图片大小（2MB）
     if (file.size > 2 * 1024 * 1024) {
       ElMessage.warning('图片大小不能超过 2MB')
       return
     }
-
-    const reader = new FileReader()
-    reader.onload = (e) => {
-      const base64 = e.target?.result as string
-      if (base64) {
-        userAvatar.value = base64
-        // 保存到 localStorage
-        localStorage.setItem(`user_avatar_${currentUsername}`, base64)
-        ElMessage.success('头像更新成功')
-      }
+    const formData = new FormData()
+    formData.append('file', file)
+    try {
+      const res = await uploadAvatar(formData)
+      const url = res.data
+      userAvatar.value = url
+      userInfo.avatar = url
+      ElMessage.success('头像更新成功')
+    } catch (error) {
+      ElMessage.error('头像上传失败')
     }
-    reader.onerror = () => {
-      ElMessage.error('读取图片失败')
-    }
-    reader.readAsDataURL(file)
   }
   input.click()
 }
 
 // 返回主页
 const goToHome = () => {
-  router.push({ path: 'homepage', query: { userName: currentUsername } })
+  router.push('/homepage')
 }
 
 onMounted(() => {
   loadUserData()
 })
 </script>
-
-
 
 <style scoped>
 /* 复用主页背景样式 */
@@ -515,9 +348,6 @@ onMounted(() => {
   background: rgba(0, 0, 0, 0.2);
   border-color: rgba(59, 130, 246, 0.2);
 }
-:deep(.el-select .el-input__wrapper) {
-  background: rgba(0, 0, 0, 0.3);
-}
 :deep(.el-button--primary) {
   background: linear-gradient(135deg, #3b82f6, #8b5cf6);
   border: none;
@@ -527,16 +357,6 @@ onMounted(() => {
 :deep(.el-button--primary:hover) {
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
-}
-:deep(.el-button--danger.is-plain) {
-  background: transparent;
-  border: 1px solid #f56c6c;
-  color: #f56c6c;
-  border-radius: 2rem;
-}
-:deep(.el-button--danger.is-plain:hover) {
-  background: rgba(245, 108, 108, 0.1);
-  transform: translateY(-1px);
 }
 @media (max-width: 768px) {
   .main-content {

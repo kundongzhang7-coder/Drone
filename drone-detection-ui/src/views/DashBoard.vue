@@ -143,12 +143,12 @@
 </template>
 
 <script setup>
-import axios from 'axios'
 import {detectCount} from '@/stores/shared.js'
 import { useRouter } from 'vue-router' // 导入路由
 
 import { ref, computed, onBeforeUnmount } from 'vue'
 import { ElMessage } from 'element-plus'
+import { startTask, endTask, uploadResult } from '@/api/task.js'
 
 // ========== 路由实例 ==========
 const router = useRouter()
@@ -170,11 +170,9 @@ const currentFps = ref(0)
 // 在 script setup 中添加 uploadRecordedVideo 函数
 const uploadRecordedVideo = async (taskId, blob) => {
   const formData = new FormData()
-  formData.append('video', blob, 'result.webm')
+  formData.append('file', blob, 'result.webm')
   try {
-    await axios.post(`http://localhost:8080/api/detection/upload-result/${taskId}`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
-    })
+    await uploadResult(taskId, formData)
     ElMessage.success('检测视频已保存')
   } catch (error) {
     console.error('上传视频失败:', error)
@@ -184,11 +182,9 @@ const uploadRecordedVideo = async (taskId, blob) => {
 // 创建检测任务
 const createDetectionTask = async (videoName) => {
   try {
-    const response = await axios.post('http://localhost:8080/api/detection/start', {
-      videoName: videoName,
-      startTime: new Date().toISOString()
-    })
-    currentTaskId.value = response.data.taskId
+    // request 拦截器已解包 Result，res.data 为 DetectionTask
+    const res = await startTask({ sourceType: 'REALTIME', taskName: videoName })
+    currentTaskId.value = res.data.id
     console.log('任务创建成功，ID:', currentTaskId.value)
   } catch (error) {
     console.error('创建任务失败:', error)
@@ -201,10 +197,7 @@ const createDetectionTask = async (videoName) => {
 const completeDetectionTask = async () => {
   if (!currentTaskId.value) return
   try {
-    await axios.post('http://localhost:8080/api/detection/end', {
-      taskId: currentTaskId.value,
-      endTime: new Date().toISOString()
-    })
+    await endTask(currentTaskId.value, {})
     console.log('任务结束，ID:', currentTaskId.value)
     currentTaskId.value = null
   } catch (error) {
@@ -293,7 +286,10 @@ const updateProgress = () => {
 const initWebSocket = () => {
   if (ws) ws.close()
   wsStatus.value = 'connecting'
-  ws = new WebSocket('ws://localhost:8000/ws/video')
+  // 相对地址：由 Nginx 把 /ws/video 代理到 Python 服务，不再硬编码 localhost:8000
+  const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+  const wsUrl = `${wsProtocol}//${window.location.host}/ws/video`
+  ws = new WebSocket(wsUrl)
   ws.onopen = () => {
     wsStatus.value = 'connected'
     console.log('WebSocket连接成功')

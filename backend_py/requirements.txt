@@ -1,9 +1,21 @@
+# 检测与推理
 ultralytics>=8.0.0
 opencv-python-headless
+numpy
+
+# Web 服务
+fastapi>=0.110.0
+uvicorn>=0.29.0
+pydantic>=2.5.0
+pydantic-settings>=2.1.0
+python-multipart>=0.0.9
+
+# 网络与对象存储
+httpx>=0.27.0
+cos-python-sdk-v5>=1.9.0
+
+# 离线研究/评估工具（保留原有依赖）
 scikit-learn
 pandas
-numpy
 matplotlib
 scipy
-fastapi>=0.100.0
-uvicorn>=0.23.0

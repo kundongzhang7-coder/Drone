@@ -1,12 +1,5 @@
 <template>
   <div class="home">
-    <!-- 视频背景组件 -->
-    <video-background
-      src="/videos/droneVideo.mp4"
-      overlay="linear-gradient(45deg, rgba(0,0,0,0.5), rgba(0,0,0,0.2))"
-      style="height: 100vh; width: 100vw; position: fixed; top: 0; left: 0; z-index: 0;"
-    />
-
     <!-- 页面内容 -->
     <div class="content">
       <h1>欢迎来到无人机检测系统</h1>
@@ -22,11 +15,9 @@
 </template>
 
 <script setup>
-import VideoBackground from '@hintay/vue-video-background'
-import {useRouter} from 'vue-router'
+import { useRouter } from 'vue-router'
 const router = useRouter()
 const handleProductIntro = () => {
-
   router.push('/productIntroduction')
 }
 </script>
@@ -37,6 +28,18 @@ const handleProductIntro = () => {
   width: 100vw;
   height: 100vh;
   overflow: hidden;
+  /* 无外部视频文件时使用纯 CSS 背景，避免资源缺失导致构建失败 */
+  background:
+    radial-gradient(circle at 20% 80%, rgba(0, 210, 255, 0.18), transparent 50%),
+    radial-gradient(circle at 80% 20%, rgba(0, 119, 179, 0.22), transparent 55%),
+    linear-gradient(135deg, #0a0e17 0%, #05070f 100%);
+  background-size: 160% 160%;
+  animation: bgShift 18s ease-in-out infinite;
+}
+
+@keyframes bgShift {
+  0%, 100% { background-position: 0% 50%; }
+  50%      { background-position: 100% 50%; }
 }
 
 .content {

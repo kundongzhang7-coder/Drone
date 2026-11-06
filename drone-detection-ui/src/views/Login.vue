@@ -47,38 +47,47 @@
 <script setup>
 import RegisterDronIcon from '../components/icons/registerDronIcon.vue'
 import { ref } from 'vue'
-import { login } from '../api/user.js'
+import { ElMessage } from 'element-plus'
+import { login } from '../api/auth.js'
 import router from '../router'
-let data = ref({
+
+const data = ref({
   userName: '',
   userPassword: '',
 })
-let message = ref('')
+const message = ref('')
 
-const forgetPassword=()=>{
+const forgetPassword = () => {
   router.push('/forget')
 }
+
 const handlelogin = async () => {
-  if (!data.value.userName.trim() ) {
-    alert('请输入用户名')
-    return ;
+  if (!data.value.userName.trim()) {
+    ElMessage.warning('请输入用户名')
+    return
   }
-  if (!data.value.userPassword.trim() ) {
-    alert('请输入密码')
-    return ;
+  if (!data.value.userPassword.trim()) {
+    ElMessage.warning('请输入密码')
+    return
   }
-  try{
-    const response= await login(data.value);
-    if(response.data.data.code==200)
-    {message.value='登录成功'
-      router.push({path:'HomePage',query:{userName:data.value.userName}})
-    }
-    else
-      message.value=response.data.data.message||'登录失败'
-  }catch(error)
-  {
-    console.error('登录错误详情:', error);
-    message.value='网络错误'
+  try {
+    // request 拦截器已把后端 Result 解包，res.data 即 LoginVO
+    const res = await login({
+      username: data.value.userName.trim(),
+      password: data.value.userPassword,
+    })
+    const info = res.data
+    localStorage.setItem('drone_token', info.token)
+    localStorage.setItem('drone_user', JSON.stringify({
+      userId: info.userId,
+      username: info.username,
+      nickname: info.nickname,
+      avatar: info.avatar,
+    }))
+    message.value = '登录成功'
+    router.push('/homePage')
+  } catch (error) {
+    message.value = error?.message || '登录失败'
   }
 }
 </script>

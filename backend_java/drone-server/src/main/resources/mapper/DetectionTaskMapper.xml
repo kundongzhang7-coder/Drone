@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.drone.mapper.DetectionTaskMapper">
+
+    <sql id="baseColumns">
+        id, task_name, user_id, status, start_time, end_time, total_frames,
+        drone_count, result_video_url, source_type, create_time, update_time
+    </sql>
+
+    <insert id="insert" parameterType="com.drone.pojo.entity.DetectionTask"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO detection_task
+            (task_name, user_id, status, start_time, end_time, total_frames,
+             drone_count, result_video_url, source_type, create_time, update_time)
+        VALUES
+            (#{taskName}, #{userId}, #{status}, #{startTime}, #{endTime}, #{totalFrames},
+             #{droneCount}, #{resultVideoUrl}, #{sourceType}, NOW(), NOW())
+    </insert>
+
+    <update id="update" parameterType="com.drone.pojo.entity.DetectionTask">
+        UPDATE detection_task
+        <set>
+            <if test="taskName != null">task_name = #{taskName},</if>
+            <if test="status != null">status = #{status},</if>
+            <if test="startTime != null">start_time = #{startTime},</if>
+            <if test="endTime != null">end_time = #{endTime},</if>
+            <if test="totalFrames != null">total_frames = #{totalFrames},</if>
+            <if test="droneCount != null">drone_count = #{droneCount},</if>
+            <if test="resultVideoUrl != null">result_video_url = #{resultVideoUrl},</if>
+            <if test="sourceType != null">source_type = #{sourceType},</if>
+            update_time = NOW(),
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <select id="findById" resultType="com.drone.pojo.entity.DetectionTask">
+        SELECT <include refid="baseColumns"/>
+        FROM detection_task
+        WHERE id = #{id}
+    </select>
+
+    <sql id="queryCondition">
+        <where>
+            <if test="query.status != null and query.status != ''">
+                AND status = #{query.status}
+            </if>
+            <if test="query.keyword != null and query.keyword != ''">
+                AND task_name LIKE CONCAT('%', #{query.keyword}, '%')
+            </if>
+        </where>
+    </sql>
+
+    <select id="countList" resultType="long">
+        SELECT COUNT(*) FROM detection_task
+        <include refid="queryCondition"/>
+    </select>
+
+    <select id="selectPage" resultType="com.drone.pojo.entity.DetectionTask">
+        SELECT <include refid="baseColumns"/>
+        FROM detection_task
+        <include refid="queryCondition"/>
+        ORDER BY create_time DESC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <select id="countAll" resultType="long">
+        SELECT COUNT(*) FROM detection_task
+    </select>
+
+    <select id="countByStatus" resultType="long">
+        SELECT COUNT(*) FROM detection_task WHERE status = #{status}
+    </select>
+
+    <select id="sumDroneCount" resultType="long">
+        SELECT COALESCE(SUM(drone_count), 0) FROM detection_task
+    </select>
+
+    <select id="sumTotalFrames" resultType="long">
+        SELECT COALESCE(SUM(total_frames), 0) FROM detection_task
+    </select>
+
+    <insert id="batchInsert">
+        INSERT INTO detection_task
+            (task_name, user_id, status, start_time, end_time, total_frames,
+             drone_count, result_video_url, source_type, create_time, update_time)
+        VALUES
+        <foreach collection="list" item="t" separator=",">
+            (#{t.taskName}, #{t.userId}, #{t.status}, #{t.startTime}, #{t.endTime},
+             #{t.totalFrames}, #{t.droneCount}, #{t.resultVideoUrl}, #{t.sourceType},
+             NOW(), NOW())
+        </foreach>
+    </insert>
+</mapper>

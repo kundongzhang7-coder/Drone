@@ -33,10 +33,10 @@
         <ul class="record-list">
           <li v-for="item in dailyRecords" :key="item.id" class="record-item">
             <span class="time">{{ formatTime(item.startTime) }} - {{ formatTime(item.endTime) }}</span>
-            <span class="video-name">{{ item.videoName }}</span>
+            <span class="video-name">{{ item.taskName }}</span>
             <div class="record-actions">
-              <button v-if="item.videoResultPath" class="play-btn" @click="playVideo(item.id)">▶ 播放</button>
-              <button v-if="item.videoResultPath" class="download-btn-small" @click="downloadVideo(item.id)">⬇ 下载</button>
+              <button v-if="item.resultVideoUrl" class="play-btn" @click="playVideo(item)">▶ 播放</button>
+              <button v-if="item.resultVideoUrl" class="download-btn-small" @click="downloadVideo(item)">⬇ 下载</button>
               <span v-else class="no-video">无录像</span>
             </div>
           </li>
@@ -49,52 +49,88 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import Chart from 'chart.js/auto'
-import axios from 'axios'
-import {useRouter} from 'vue-router'
+import { useRouter } from 'vue-router'
+import { listTasks } from '@/api/task.js'
+
 const router = useRouter()
 
 const chartRef = ref(null)
 const selectedDate = ref('')
 const dailyRecords = ref([])
+const allRecords = ref([])
 
 let chartInstance = null
 
-//返回
+// 返回
 const goBack = () => {
   router.push('homePage')
 }
-// 播放视频（在新窗口打开或使用弹窗）
-const playVideo = (taskId) => {
-  const url = `http://localhost:8080/api/detection/video/${taskId}`
-  window.open(url, '_blank')
+
+// 兼容 LocalDateTime 的 ISO 字符串与数组两种序列化形式
+const toDate = (value) => {
+  if (!value) return null
+  if (Array.isArray(value)) {
+    const [y, m, d, hh = 0, mm = 0, ss = 0] = value
+    return new Date(y, (m || 1) - 1, d || 1, hh, mm, ss)
+  }
+  return new Date(value)
 }
 
-// 下载视频
-const downloadVideo = (taskId) => {
-  const url = `http://localhost:8080/api/detection/video/${taskId}`
+const formatDateKey = (date) => {
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
+
+// 结果视频保存在 COS，直接使用返回的 URL
+const playVideo = (item) => {
+  window.open(item.resultVideoUrl, '_blank')
+}
+
+const downloadVideo = (item) => {
   const a = document.createElement('a')
-  a.href = url
-  a.download = `result_${taskId}.webm`
+  a.href = item.resultVideoUrl
+  a.download = `result_${item.id}.webm`
+  a.target = '_blank'
   a.click()
 }
+
 // 格式化时间
 const formatTime = (timeStr) => {
-  if (!timeStr) return '进行中'
-  const date = new Date(timeStr)
+  const date = toDate(timeStr)
+  if (!date) return '进行中'
   return date.toLocaleTimeString('zh-CN', { hour12: false })
 }
+
 const isChartEmpty = ref(false)
-// 加载统计数据并渲染图表
+
+// 加载任务并在前端聚合近 30 天数据
 const loadStats = async () => {
   try {
-    const res = await axios.get('http://localhost:8080/api/detection/stats?days=30')
-    const labels = res.data.map(item => item.date)
-    const values = res.data.map(item => item.count)
-    // 判断是否全为0
-    isChartEmpty.value = values.every(v => v === 0)
+    const res = await listTasks({ page: 1, pageSize: 200 })
+    const records = res.data?.records || []
+    allRecords.value = records
+
+    const labels = []
+    const countMap = {}
+    for (let i = 29; i >= 0; i--) {
+      const d = new Date()
+      d.setDate(d.getDate() - i)
+      const key = formatDateKey(d)
+      labels.push(key)
+      countMap[key] = 0
+    }
+    records.forEach((r) => {
+      const dt = toDate(r.startTime)
+      if (!dt) return
+      const key = formatDateKey(dt)
+      if (key in countMap) countMap[key] += 1
+    })
+    const values = labels.map((k) => countMap[k])
+    isChartEmpty.value = values.every((v) => v === 0)
 
     if (chartInstance) chartInstance.destroy()
-
     const ctx = chartRef.value.getContext('2d')
     chartInstance = new Chart(ctx, {
       type: 'line',
@@ -139,11 +175,9 @@ const loadStats = async () => {
             ticks: { color: '#94a3b8' }
           }
         },
-        // 点击事件
         onClick: (event, elements) => {
           if (elements.length > 0) {
-            const index = elements[0].index
-            const date = labels[index]
+            const date = labels[elements[0].index]
             selectedDate.value = date
             loadDailyRecords(date)
           }
@@ -155,16 +189,12 @@ const loadStats = async () => {
   }
 }
 
-// 加载指定日期的详细记录
-const loadDailyRecords = async (date) => {
-  try {
-    const res = await axios.get('http://localhost:8080/api/detection/list', {
-      params: { date }
-    })
-    dailyRecords.value = res.data
-  } catch (error) {
-    console.error('加载明细失败:', error)
-  }
+// 按日期筛选明细
+const loadDailyRecords = (date) => {
+  dailyRecords.value = allRecords.value.filter((r) => {
+    const dt = toDate(r.startTime)
+    return dt && formatDateKey(dt) === date
+  })
 }
 
 onMounted(() => {

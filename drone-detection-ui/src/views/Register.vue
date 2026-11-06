@@ -48,40 +48,35 @@
 </template>
 
 <script setup>
-import {userMap} from '../mock/userDB.js'
-import {ref} from 'vue';
+import { ref } from 'vue'
+import { ElMessage } from 'element-plus'
 import RegisterDronIcon from '../components/icons/registerDronIcon.vue'
+import { register } from '../api/auth.js'
 import router from '../router'
 
-let userName=ref('');
-let userEmail=ref('');
-let userPassword=ref('');
-let exitAccount=ref('');
-let registerMessage=ref('');
+const userName = ref('')
+const userEmail = ref('')
+const userPassword = ref('')
+const exitAccount = ref('')
+const registerMessage = ref('')
 
-function registerAccount() {
-  console.log('userMap:', userMap, '类型:', userMap instanceof Map);
-  if(userName.value=='' || userEmail.value=='' || userPassword.value=='') {
-    registerMessage.value='请填写完整信息';
-    return;
+const registerAccount = async () => {
+  if (userName.value === '' || userEmail.value === '' || userPassword.value === '') {
+    registerMessage.value = '请填写完整信息'
+    return
   }
-  if(userMap.has(userName.value)) {
-    exitAccount.value='用户名已存在';
-    registerMessage.value='账号创建失败';
-    return ;
+  try {
+    await register({
+      username: userName.value.trim(),
+      password: userPassword.value,
+      nickname: userName.value.trim(),
+    })
+    ElMessage.success('账号创建成功，请登录')
+    router.push('/login')
+  } catch (error) {
+    exitAccount.value = error?.message || '账号创建失败'
+    registerMessage.value = '账号创建失败'
   }
-  const newUser={
-    name:userName.value,
-    email:userEmail.value,
-    password:userPassword.value,
-    first:'',
-    second:'',
-    third:''
-  }
-  userMap.set(userName.value,newUser);
-  registerMessage.value='账号创建成功';
-  exitAccount.value='';
-  router.push(`/emailquestionsset?userName=${userName.value}`)
 }
 </script>
 
