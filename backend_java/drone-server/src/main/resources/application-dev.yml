@@ -8,6 +8,20 @@ spring:
     init:
       # 开发环境自动建表并写入种子数据；schema.sql / data.sql 均为幂等脚本
       mode: always
+  data:
+    redis:
+      # 本地 Redis（redis-6379.conf）的开发密码
+      password: 123456
+  ai:
+    model:
+      # 关闭 Spring AI 自带的 OpenAI 各模型自动装配，本地无 API Key 也能启动
+      chat: none
+      embedding: none
+      image: none
+      audio:
+        speech: none
+        transcription: none
+      moderation: none
 
 drone:
   jwt:
