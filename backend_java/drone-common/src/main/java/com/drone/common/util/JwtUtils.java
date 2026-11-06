@@ -28,7 +28,19 @@ public class JwtUtils {
 
     @PostConstruct
     public void init() {
-        byte[] keyBytes = jwtProperties.getSecret().getBytes(StandardCharsets.UTF_8);
+        String secret = jwtProperties.getSecret();
+        if (secret == null || secret.isBlank()) {
+            throw new IllegalStateException(
+                    "未配置 JWT 密钥（drone.jwt.secret / 环境变量 JWT_SECRET）。"
+                    + "本地开发请使用默认的 dev profile（内置开发密钥）；"
+                    + "生产环境必须通过环境变量注入至少 32 字节的随机密钥。");
+        }
+        byte[] keyBytes = secret.getBytes(StandardCharsets.UTF_8);
+        if (keyBytes.length < 32) {
+            throw new IllegalStateException(
+                    "JWT 密钥长度不足，当前 " + keyBytes.length + " 字节，HS256 要求至少 32 字节。"
+                    + "请重新生成足够长的随机密钥并通过环境变量 JWT_SECRET 注入。");
+        }
         this.secretKey = Keys.hmacShaKeyFor(keyBytes);
     }
 

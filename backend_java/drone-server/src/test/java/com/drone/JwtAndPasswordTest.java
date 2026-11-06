@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -45,5 +46,24 @@ class JwtAndPasswordTest {
 
         assertTrue(PasswordUtils.matches(raw, encoded));
         assertFalse(PasswordUtils.matches("wrong-password", encoded));
+    }
+
+    @Test
+    void shouldFailWhenSecretBlank() {
+        JwtProperties props = new JwtProperties();
+        props.setSecret("");
+        JwtUtils utils = new JwtUtils(props);
+
+        IllegalStateException ex = assertThrows(IllegalStateException.class, utils::init);
+        assertTrue(ex.getMessage().contains("JWT"));
+    }
+
+    @Test
+    void shouldFailWhenSecretTooShort() {
+        JwtProperties props = new JwtProperties();
+        props.setSecret("short");
+        JwtUtils utils = new JwtUtils(props);
+
+        assertThrows(IllegalStateException.class, utils::init);
     }
 }
